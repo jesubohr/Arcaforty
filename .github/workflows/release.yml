@@ -94,7 +94,7 @@ jobs:
           path: dist
       - name: Publish release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           COMMIT: ${{ github.sha }}
           APP_VERSION: ${{ needs.build.outputs.version }}
@@ -102,6 +102,10 @@ jobs:
           BUILD_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "::error::Repository secret RELEASE_TOKEN is missing. Add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
           cd dist
           sha256sum --check "Arcaforty-Setup-${APP_VERSION}-x64.exe.sha256"
           tag="v${APP_VERSION}-build.${BUILD_NUMBER}.${BUILD_ATTEMPT}"

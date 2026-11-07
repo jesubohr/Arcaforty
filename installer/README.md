@@ -20,7 +20,7 @@ Every push to `main` runs `.github/workflows/release.yml`. You can also run it f
 
 The Windows runner checks formatting, runs Clippy and tests, builds the installer, and tests installation and removal without opening the app. Only after these steps pass does a separate job publish the installer and its SHA256 checksum on the [Releases page](https://github.com/jesubohr/Arcaforty/releases).
 
-Each release uses a unique tag such as `v0.1.0-build.12.1` (app version, workflow run, attempt). The installed app keeps its version from `Cargo.toml`. Earlier releases remain available. The workflow uses GitHub's built-in token; no extra secret is needed. Release downloads remain private while the repository is private.
+Each release uses a unique tag such as `v0.1.0-build.12.1` (app version, workflow run, attempt). The installed app keeps its version from `Cargo.toml`. Earlier releases remain available. The build job uses GitHub's built-in read-only token. The publish job needs a fine-grained personal access token scoped only to the Arcaforty repository, with **Contents: Read and write** and **Workflows: Read and write** permissions. Set an expiry, then add the token as the repository Actions secret `RELEASE_TOKEN` in Settings > Secrets and variables > Actions. Never commit the token. Renew the secret before it expires. Release downloads remain private while the repository is private.
 
 This packages the current app, including the security and accessibility limitations in the project README. It is not an independent security audit. Dependency notices are generated from the locked source packages; review dependency license obligations before a public release.
 
