@@ -1,0 +1,33 @@
+# Rust build output
+/target
+**/*.rs.bk
+*.pdb
+
+# Installer output and staging (the Inno Setup script writes here)
+/dist
+
+# Local vault, settings and runtime files (never commit real user data)
+*.arca
+vault.lock
+settings.json
+*.tmp
+*.log
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and tools
+.vscode/
+.idea/
+*.swp
+*~
+.claude/
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
