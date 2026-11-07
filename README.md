@@ -14,9 +14,9 @@ Everything stays on your computer. The app does not connect to the internet, doe
 
 Arcaforty works on Windows 10 (version 2004 or newer) and Windows 11.
 
-There is no public download yet. Choose one option:
+Get the latest installer from the [Releases page](https://github.com/jesubohr/Arcaforty/releases/latest). Downloads are visible only to people with repository access while the repository is private.
 
-**Option 1: Use an installer someone gave you.**
+**Option 1: Download the installer or use one someone gave you.**
 1. Double-click `Arcaforty-Setup-0.1.0-x64.exe`. You do not need administrator access.
 2. Windows may warn about an "unknown publisher". The installer is not digitally signed yet. Continue only if you trust the person who gave it to you.
 3. Optional check: open PowerShell in the folder that holds the installer and run `Get-FileHash .\Arcaforty-Setup-0.1.0-x64.exe`. The result must match the text in the `.sha256` file that came with it.

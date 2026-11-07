@@ -1,0 +1,103 @@
+name: Windows installer release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.93.1 --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+          rustup override set 1.93.1
+          if ($LASTEXITCODE -ne 0) { throw 'Rust selection failed.' }
+      - name: Check and test
+        run: |
+          cargo fmt --check
+          if ($LASTEXITCODE -ne 0) { throw 'Formatting failed.' }
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw 'Clippy failed.' }
+          cargo test --workspace --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe")) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed.' }
+          }
+      - name: Read app version
+        id: version
+        run: |
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed.' }
+          $version = ($metadata.packages | Where-Object name -eq 'arcaforty').version
+          if (-not $version) { throw 'App version missing.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Build installer
+        run: ./installer/build-installer.ps1
+      - name: Test installation and removal
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: ./installer/test-installer.ps1 -InstallerPath "dist/Arcaforty-Setup-$env:APP_VERSION-x64.exe"
+      - name: Save release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-installer
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/Arcaforty-Setup-${{ steps.version.outputs.version }}-x64.exe
+            dist/Arcaforty-Setup-${{ steps.version.outputs.version }}-x64.exe.sha256
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          APP_VERSION: ${{ needs.build.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum --check "Arcaforty-Setup-${APP_VERSION}-x64.exe.sha256"
+          tag="v${APP_VERSION}-build.${BUILD_NUMBER}.${BUILD_ATTEMPT}"
+          printf 'Windows x64 installer built from commit %s.\n\nDownload the .exe to install. The .sha256 file lets you check the download. This build is unsigned; Windows may show an unknown-publisher warning.\n' "$COMMIT" > release-notes.md
+          gh release create "$tag" \
+            "Arcaforty-Setup-${APP_VERSION}-x64.exe" \
+            "Arcaforty-Setup-${APP_VERSION}-x64.exe.sha256" \
+            --target "$COMMIT" \
+            --title "Arcaforty ${APP_VERSION} (build ${BUILD_NUMBER}.${BUILD_ATTEMPT})" \
+            --notes-file release-notes.md --latest
